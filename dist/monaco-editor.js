@@ -20,6 +20,7 @@ var MonacoEditor = function (_HTMLElement) {
     _createClass(MonacoEditor, [{
         key: 'createdCallback',
         value: function createdCallback() {
+            this.properties = ['value', 'language', 'theme', 'readOnly', 'lineNumbers', 'namespace'];
             this.defaults = {
                 language: 'javascript',
                 value: '',
@@ -44,33 +45,81 @@ var MonacoEditor = function (_HTMLElement) {
         value: function connectedCallback() {
             var _this2 = this;
 
-            this.setAttribute('loading', true);
+            this.loading = true;
+            // Create a shadow root to host the style and the editor's container'
+            this.root = this.createShadowRoot();
+            this.styleEl = document.createElement('style');
             this.container = document.createElement('div');
+            // Expand the container to the element's size
             this.container.style.width = '100%';
             this.container.style.height = '100%';
-            this.appendChild(this.container);
-            require.config({ paths: { 'vs': this._getProperties().namespace } });
+            // Append the style and container to the shadow root
+            this.root.appendChild(this.styleEl);
+            this.root.appendChild(this.container);
+            // Get the dependencies if needed
             this._loadDependency().then(function () {
+                // Fill the style element with the stylesheet content
+                _this2.styleEl.innerHTML = MonacoEditor._styleText;
+                // Create the editor
                 _this2.editor = monaco.editor.create(_this2.container, _this2._getProperties());
-                _this2.removeAttribute('loading');
+                _this2.bindEvents();
+                _this2.loading = false;
+                // Notify that the editor is ready
                 _this2.dispatchEvent(new CustomEvent('ready', { bubbles: true }));
+            });
+        }
+    }, {
+        key: 'bindEvents',
+        value: function bindEvents() {
+            var _this3 = this;
+
+            this.editor.onDidChangeModelContent(function (event) {
+                _this3.value = _this3.editor.getValue();
+                _this3.dispatchEvent(new CustomEvent('changed', { bubbles: true }));
             });
         }
 
         /**
-            * Uses requirejs to load the editor. Stores the promise of the first load, and returns it
-            * to the subsequent ones
-            */
+        * Loads the monaco dependencies and the required stylesheet. Prevent data to be loaded twice
+        */
 
     }, {
         key: '_loadDependency',
         value: function _loadDependency() {
             if (!MonacoEditor._loadingPromise) {
-                MonacoEditor._loadingPromise = new Promise(function (resolve, reject) {
-                    require(['vs/editor/editor.main'], resolve);
-                });
+                MonacoEditor._loadingPromise = Promise.all([this._loadMonaco(), this._loadStylesheet()]);
             }
             return MonacoEditor._loadingPromise;
+        }
+
+        /**
+         * Use the require method from the vscode-loader to import all the dependencies
+         */
+
+    }, {
+        key: '_loadMonaco',
+        value: function _loadMonaco() {
+            var _this4 = this;
+
+            return new Promise(function (resolve, reject) {
+                require.config({ paths: { 'vs': _this4._getProperties().namespace } });
+                require(['vs/editor/editor.main'], resolve);
+            });
+        }
+
+        /**
+         * We need to embed this stylesheet in a style tag inside the shadow root
+         */
+
+    }, {
+        key: '_loadStylesheet',
+        value: function _loadStylesheet() {
+            return fetch(this._getProperties().namespace + '/editor/editor.main.css').then(function (r) {
+                return r.text();
+            }).then(function (style) {
+                MonacoEditor._styleText = style;
+                return style;
+            });
         }
     }, {
         key: 'disconnectedCallback',
@@ -109,18 +158,16 @@ var MonacoEditor = function (_HTMLElement) {
         key: '_setProperty',
         value: function _setProperty(name, value) {
             if (value === null) {
-                delete this.properties[name];
+                delete this[name];
             } else {
-                this.properties[name] = value;
+                this[name] = value;
             }
             this._updateOptions();
         }
     }, {
         key: '_getInitialValues',
         value: function _getInitialValues() {
-            var _this3 = this;
-
-            this.properties = {
+            var opts = {
                 namespace: this.getAttribute('namespace'),
                 value: this.getAttribute('value'),
                 theme: this.getAttribute('theme'),
@@ -128,16 +175,21 @@ var MonacoEditor = function (_HTMLElement) {
                 readOnly: this.getAttribute('read-only') !== null,
                 lineNumbers: this.getAttribute('no-line-numbers') === null
             };
-            Object.keys(this.properties).forEach(function (key) {
-                if (_this3.properties[key] === null) {
-                    delete _this3.properties[key];
-                }
-            });
+            this.updateOptions(opts);
         }
     }, {
-        key: '_updateOptions',
-        value: function _updateOptions() {
-            this.editor.updateOptions(this._getProperties());
+        key: 'updateOptions',
+        value: function updateOptions(opts) {
+            var _this5 = this;
+
+            this.properties.forEach(function (key) {
+                if (typeof opts[key] !== 'undefined') {
+                    _this5[key] = opts[key];
+                }
+            });
+            if (this.editor) {
+                this.editor.updateOptions(this._getProperties());
+            }
         }
     }, {
         key: '_updateValue',
@@ -147,13 +199,20 @@ var MonacoEditor = function (_HTMLElement) {
     }, {
         key: '_getProperties',
         value: function _getProperties() {
-            return Object.assign({}, this.defaults, this.properties);
-        }
-    }, {
-        key: 'updateOptions',
-        value: function updateOptions(opts) {
-            Object.assign(this.properties, opts);
-            this._updateOptions();
+            var opts = {
+                namespace: this.namespace || this.defaults.namespace,
+                value: this.value || this.defaults.value,
+                theme: this.theme || this.defaults.theme,
+                language: this.language || this.defaults.language,
+                readOnly: typeof this.readOnly === 'undefined' ? this.defaults.readOnly : this.readOnly,
+                lineNumbers: typeof this.lineNumbers === 'undefined' ? this.defaults.lineNumbers : this.lineNumbers
+            };
+            Object.keys(opts).forEach(function (key) {
+                if (typeof opts[key] === 'undefined') {
+                    delete opts[key];
+                }
+            });
+            return opts;
         }
     }, {
         key: 'getEditor',
