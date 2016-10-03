@@ -5,6 +5,9 @@
   "authors": [
     "platypusmeister <perso@paulvarache.ninja>"
   ],
+  "scripts": {
+    "postinstall": "./post-install.sh"
+  },
   "license": "ISC",
   "keywords": [
     "web-component",

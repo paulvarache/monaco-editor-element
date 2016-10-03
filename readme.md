@@ -23,6 +23,8 @@ Integration:
 Due to the fact that `monaco-editor` is only available through `npm`, that I couldn't find a public repository of the source code and that it heavily depends on `requirejs` some compromises have been made.
 The editor needs its loader to work.
 You can find that script under `node_modules/monaco-editor/min/vs`. You need to tell the element where the loader comes from so that `requirejs` can resolve the right modules. This is why the namespace attribute is here.
+Furthermore, to be able to embed the editor inside a shadow root, a patch on the source doe must be applied. For everyone's convenience, I added a postinstall script that takes care of that.
+Unfortunaletly it means that you will have to rely on the version inside the `node_modules` of this element.
 If you want to host the `monaco-editor` somewhere else than the `node_modules` folder (I definitely will), you need to update these values.
 
 Example:
