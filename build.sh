@@ -1,6 +1,6 @@
 #!/bin/sh
-
 rm -rf ./dist
 mkdir ./dist
-./node_modules/.bin/babel ./monaco-editor.js -o ./dist/monaco-editor.js
-./node_modules/.bin/uglifyjs ./dist/monaco-editor.js -o ./dist/monaco-editor.min.js
+cp ./monaco-editor.js ./dist/monaco-element.js
+./node_modules/.bin/babel ./monaco-editor.js -o ./dist/monaco-editor.es5.js
+./node_modules/.bin/uglifyjs ./dist/monaco-editor.es5.js -o ./dist/monaco-editor.es5.min.js
