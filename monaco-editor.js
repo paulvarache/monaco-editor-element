@@ -7,7 +7,7 @@ class MonacoEditor extends HTMLElement {
             value: '',
             lineNumbers: true,
             readOnly: false,
-            namespace: 'node_modules/monaco-editor/min/vs'
+            namespace: './dist/monaco-editor/vs'
         };
         this._getInitialValues();
     }
