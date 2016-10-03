@@ -1,0 +1,21 @@
+{
+  "name": "monaco-editor-element",
+  "description": "A custom element wrapper for the Monaco editor by Microsoft",
+  "main": "./dist/monaco-editor.min.js",
+  "authors": [
+    "platypusmeister <perso@paulvarache.ninja>"
+  ],
+  "license": "ISC",
+  "keywords": [
+    "web-component",
+    "monaco"
+  ],
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
