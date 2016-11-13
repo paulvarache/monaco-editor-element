@@ -92,21 +92,23 @@ var MonacoEditor = function (_HTMLElement) {
     function MonacoEditor() {
         _classCallCheck(this, MonacoEditor);
 
-        return _possibleConstructorReturn(this, (MonacoEditor.__proto__ || Object.getPrototypeOf(MonacoEditor)).apply(this, arguments));
+        var _this = _possibleConstructorReturn(this, (MonacoEditor.__proto__ || Object.getPrototypeOf(MonacoEditor)).call(this));
+
+        _this.createdCallback();
+        return _this;
     }
 
     _createClass(MonacoEditor, [{
         key: 'createdCallback',
         value: function createdCallback() {
-            this.properties = ['value', 'language', 'theme', 'readOnly', 'lineNumbers', 'namespace'];
-            this.defaults = {
-                language: 'javascript',
-                value: '',
-                lineNumbers: true,
-                readOnly: false,
-                namespace: './dist/monaco-editor/vs'
-            };
-            this._getInitialValues();
+            this._readOnly = false;
+            this._language = 'javascript';
+            this._value = '';
+            this._theme = 'vs';
+            this._noLineNumbers = false;
+            this._namespace = './dist/monaco-editor/vs';
+
+            console.log(this.editorOptions);
         }
     }, {
         key: 'attachedCallback',
@@ -123,7 +125,15 @@ var MonacoEditor = function (_HTMLElement) {
         value: function connectedCallback() {
             var _this2 = this;
 
-            this.loading = true;
+            var attributes = ['value', 'language', 'readOnly', 'noLineNumbers', 'theme', 'namespace'],
+                attrValue = void 0;
+            attributes.forEach(function (attribute) {
+                attrValue = _this2.getAttribute(attribute);
+                if (attrValue !== null) {
+                    _this2.attributeChangedCallback(attribute, null, attrValue);
+                }
+            });
+            this._loading = true;
             // Create a shadow root to host the style and the editor's container'
             this.root = typeof this.attachShadow === 'function' ? this.attachShadow({ mode: 'open' }) : this.createShadowRoot();
             this.styleEl = document.createElement('style');
@@ -139,10 +149,10 @@ var MonacoEditor = function (_HTMLElement) {
                 // Fill the style element with the stylesheet content
                 _this2.styleEl.innerHTML = MonacoEditor._styleText;
                 // Create the editor
-                _this2.editor = monaco.editor.create(_this2.container, _this2._getProperties());
+                _this2.editor = monaco.editor.create(_this2.container, _this2.editorOptions);
                 _this2.editor.viewModel._shadowRoot = _this2.root;
                 _this2.bindEvents();
-                _this2.loading = false;
+                _this2._loading = false;
                 // Notify that the editor is ready
                 _this2.dispatchEvent(new CustomEvent('ready', { bubbles: true }));
             });
@@ -181,7 +191,7 @@ var MonacoEditor = function (_HTMLElement) {
             var _this4 = this;
 
             return new Promise(function (resolve, reject) {
-                require.config({ paths: { 'vs': _this4._getProperties().namespace } });
+                require.config({ paths: { 'vs': _this4.editorOptions.namespace } });
                 require(['vs/editor/editor.main'], resolve);
             });
         }
@@ -193,7 +203,7 @@ var MonacoEditor = function (_HTMLElement) {
     }, {
         key: '_loadStylesheet',
         value: function _loadStylesheet() {
-            return fetch(this._getProperties().namespace + '/editor/editor.main.css').then(function (r) {
+            return fetch(this.editorOptions.namespace + '/editor/editor.main.css').then(function (r) {
                 return r.text();
             }).then(function (style) {
                 MonacoEditor._styleText = style;
@@ -209,94 +219,114 @@ var MonacoEditor = function (_HTMLElement) {
     }, {
         key: 'attributeChangedCallback',
         value: function attributeChangedCallback(name, oldValue, newValue) {
-            switch (name) {
-                case 'value':
-                    {
-                        this._setProperty('value', newValue);
-                        this._updateValue();
-                        break;
-                    }
-                case 'theme':
-                    {
-                        this._setProperty(name, newValue);
-                        break;
-                    }
-                case 'read-only':
-                    {
-                        this._setProperty('readOnly', newValue !== null);
-                        break;
-                    }
-                case 'no-line-numbers':
-                    {
-                        this._setProperty('lineNumbers', newValue === null);
-                        break;
-                    }
-            }
-        }
-    }, {
-        key: '_setProperty',
-        value: function _setProperty(name, value) {
-            if (value === null) {
-                delete this[name];
-            } else {
-                this[name] = value;
-            }
-            this._updateOptions();
-        }
-    }, {
-        key: '_getInitialValues',
-        value: function _getInitialValues() {
-            var opts = {
-                namespace: this.getAttribute('namespace'),
-                value: this.getAttribute('value'),
-                theme: this.getAttribute('theme'),
-                language: this.getAttribute('language'),
-                readOnly: this.getAttribute('read-only') !== null,
-                lineNumbers: this.getAttribute('no-line-numbers') === null
-            };
-            this.updateOptions(opts);
-        }
-    }, {
-        key: 'updateOptions',
-        value: function updateOptions(opts) {
-            var _this5 = this;
-
-            this.properties.forEach(function (key) {
-                if (typeof opts[key] !== 'undefined') {
-                    _this5[key] = opts[key];
-                }
+            var camelCased = name.replace(/-([a-z])/g, function (m, w) {
+                return w.toUpperCase();
             });
-            if (this.editor) {
-                this.editor.updateOptions(this._getProperties());
-            }
-        }
-    }, {
-        key: '_updateValue',
-        value: function _updateValue() {
-            this.editor.setValue(this._getProperties().value);
-        }
-    }, {
-        key: '_getProperties',
-        value: function _getProperties() {
-            var opts = {
-                namespace: this.namespace || this.defaults.namespace,
-                value: this.value || this.defaults.value,
-                theme: this.theme || this.defaults.theme,
-                language: this.language || this.defaults.language,
-                readOnly: typeof this.readOnly === 'undefined' ? this.defaults.readOnly : this.readOnly,
-                lineNumbers: typeof this.lineNumbers === 'undefined' ? this.defaults.lineNumbers : this.lineNumbers
-            };
-            Object.keys(opts).forEach(function (key) {
-                if (typeof opts[key] === 'undefined') {
-                    delete opts[key];
-                }
-            });
-            return opts;
+            console.log(name, camelCased);
+            this[camelCased] = newValue;
         }
     }, {
         key: 'getEditor',
         value: function getEditor() {
             return this.editor;
+        }
+    }, {
+        key: 'value',
+        set: function set(value) {
+            if (this._value === value) {
+                return;
+            }
+            this._value = value;
+            if (this.editor) {
+                this.editor.setValue(this._value);
+            }
+        },
+        get: function get() {
+            return this._value;
+        }
+    }, {
+        key: 'theme',
+        set: function set(t) {
+            if (this._theme === t) {
+                return;
+            }
+            this._theme = t;
+            if (this.editor) {
+                this.editor.updateOptions({ theme: this._theme });
+            }
+        },
+        get: function get() {
+            return this._theme;
+        }
+    }, {
+        key: 'readOnly',
+        set: function set(r) {
+            if (this._readOnly === r) {
+                return;
+            }
+            this._readOnly = r;
+            if (this.editor) {
+                this.editor.updateOptions({ readOnly: this._readOnly });
+            }
+        },
+        get: function get() {
+            return this._readOnly;
+        }
+    }, {
+        key: 'noLineNumbers',
+        set: function set(v) {
+            if (this._noLineNumbers === v) {
+                return;
+            }
+            this._noLineNumbers = v;
+            if (this.editor) {
+                this.editor.updateOptions({ lineNumbers: !this._noLineNumbers });
+            }
+        },
+        get: function get() {
+            return this._noLineNumbers;
+        }
+    }, {
+        key: 'editorOptions',
+        get: function get() {
+            return {
+                namespace: this.namespace,
+                value: this.value,
+                theme: this.theme,
+                language: this.language,
+                readOnly: this.readOnly,
+                lineNumbers: !this.noLineNumbers
+            };
+        }
+    }, {
+        key: 'namespace',
+        set: function set(ns) {
+            if (this._namespace === ns) {
+                return;
+            }
+            this._namespace = ns;
+        },
+        get: function get() {
+            return this._namespace;
+        }
+    }, {
+        key: 'language',
+        set: function set(l) {
+            if (this._language === l) {
+                return;
+            }
+            this._language = l;
+            if (this.editor) {
+                this.editor.updateOptions({ language: this._language });
+            }
+        },
+        get: function get() {
+            return this._language;
+        }
+    }, {
+        key: 'loading',
+        get: function get() {
+            return this._loading;
         }
     }]);
 

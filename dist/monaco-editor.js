@@ -78,16 +78,27 @@ if (typeof ShadowRoot.prototype.caretRangeFromPoint === 'undefined') {
 
 class MonacoEditor extends HTMLElement {
 
+    static get observedAttributes() {
+        return ['value', 'language', 'theme', 'read-only', 'no-line-numbers',
+                'namespace', 'no-rounded-selection', 'no-scroll-beyond-last-line'];
+    }
+
+    constructor () {
+        super();
+        this.createdCallback();
+    }
+
     createdCallback () {
-        this.properties = ['value', 'language', 'theme', 'readOnly', 'lineNumbers', 'namespace'];
-        this.defaults = {
-            language: 'javascript',
-            value: '',
-            lineNumbers: true,
-            readOnly: false,
-            namespace: './dist/monaco-editor/vs'
-        };
-        this._getInitialValues();
+        this._value = '';
+        this._namespace = './dist/monaco-editor/vs';
+
+        this.addStringProperty('theme', 'theme', 'vs');
+        this.addStringProperty('language', 'language', 'javascript');
+
+        this.addBooleanProperty('readOnly', 'readOnly', false);
+        this.addBooleanProperty('noLineNumbers', 'lineNumbers', false, false, true);
+        this.addBooleanProperty('noRoundedSelection', 'roundedSelection', false, false, true);
+        this.addBooleanProperty('noScrollBeyondLastLine', 'scrollBeyondLastLine', false, false, true);
     }
 
     attachedCallback () {
@@ -99,7 +110,7 @@ class MonacoEditor extends HTMLElement {
     }
 
     connectedCallback () {
-        this.loading = true;
+        this._loading = true;
         // Create a shadow root to host the style and the editor's container'
         this.root = typeof this.attachShadow === 'function' ? this.attachShadow({ mode: 'open' }) : this.createShadowRoot();
         this.styleEl = document.createElement('style');
@@ -115,10 +126,10 @@ class MonacoEditor extends HTMLElement {
             // Fill the style element with the stylesheet content
             this.styleEl.innerHTML = MonacoEditor._styleText;
             // Create the editor
-            this.editor = monaco.editor.create(this.container, this._getProperties());
+            this.editor = monaco.editor.create(this.container, this.editorOptions);
             this.editor.viewModel._shadowRoot = this.root;
             this.bindEvents();
-            this.loading = false;
+            this._loading = false;
             // Notify that the editor is ready
             this.dispatchEvent(new CustomEvent('ready', { bubbles: true }));
         });
@@ -149,7 +160,7 @@ class MonacoEditor extends HTMLElement {
      */
     _loadMonaco () {
         return new Promise((resolve, reject) => {
-            require.config({ paths: { 'vs': this._getProperties().namespace }});
+            require.config({ paths: { 'vs': this.editorOptions.namespace }});
             require(['vs/editor/editor.main'], resolve);
         });
     }
@@ -158,7 +169,7 @@ class MonacoEditor extends HTMLElement {
      * We need to embed this stylesheet in a style tag inside the shadow root
      */
     _loadStylesheet () {
-        return fetch(`${this._getProperties().namespace}/editor/editor.main.css`)
+        return fetch(`${this.editorOptions.namespace}/editor/editor.main.css`)
             .then(r => r.text())
             .then(style => {
                 MonacoEditor._styleText = style;
@@ -172,82 +183,110 @@ class MonacoEditor extends HTMLElement {
     }
 
     attributeChangedCallback (name, oldValue, newValue) {
-        switch (name) {
-            case 'value': {
-                this._setProperty('value', newValue);
-                this._updateValue();
-                break;
-            }
-            case 'theme': {
-                this._setProperty(name, newValue);
-                break;
-            }
-            case 'read-only': {
-                this._setProperty('readOnly', (newValue !== null));
-                break;
-            }
-            case 'no-line-numbers': {
-                this._setProperty('lineNumbers', (newValue === null));
-                break;
-            }
-        }
+        let camelCased = name.replace(/-([a-z])/g, (m, w) => {
+            return w.toUpperCase();
+        });
+        this[camelCased] = newValue;
     }
 
-    _setProperty (name, value) {
-        if (value === null) {
-            delete this[name];
-        } else {
-            this[name] = value;
-        }
-        this._updateOptions();
-    }
-
-    _getInitialValues () {
-        let opts = {
-            namespace: this.getAttribute('namespace'),
-            value: this.getAttribute('value'),
-            theme: this.getAttribute('theme'),
-            language: this.getAttribute('language'),
-            readOnly: (this.getAttribute('read-only') !== null),
-            lineNumbers: (this.getAttribute('no-line-numbers') === null)
-        };
-        this.updateOptions(opts);
-    }
-
-    updateOptions (opts) {
-        this.properties.forEach(key => {
-            if (typeof opts[key] !== 'undefined') {
-                this[key] = opts[key];
+    addStringProperty (name, monacoName, value, reflectToAttribute) {
+        let cachedName = '_' + name,
+            attrName = name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase(),
+            monacoOptions = {};
+        this[cachedName] = value;
+        Object.defineProperty(this, name, {
+            get: () => {
+                return this[cachedName];
+            },
+            set: (value) => {
+                if (this[cachedName] === value) {
+                    return;
+                }
+                this[cachedName] = value;
+                if (reflectToAttribute) {
+                    this.setAttribute(attrName, this[cachedName])
+                }
+                if (this.editor) {
+                    monacoOptions[monacoName] = this[cachedName];
+                    this.editor.updateOptions(monacoOptions);
+                }
             }
         });
+    }
+
+    addBooleanProperty (name, monacoName, value, reflectToAttribute, invert) {
+        let cachedName = '_' + name,
+            attrName = name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase(),
+            monacoOptions = {};
+        value = Boolean(value);
+        this[cachedName] = value;
+        Object.defineProperty(this, name, {
+            get: () => {
+                return this[cachedName];
+            },
+            set: (value) => {
+                value = value == '' ? true : Boolean(value);
+                if (this[cachedName] === value) {
+                    return;
+                }
+                this[cachedName] = value;
+                if (reflectToAttribute) {
+                    if (value) {
+                        this.setAttribute(attrName, '');
+                    } else {
+                        this.removeAttribute(attrName);
+                    }
+                }
+                if (this.editor) {
+                    monacoOptions[monacoName] = invert ? !this[cachedName] : this[cachedName];
+                    this.editor.updateOptions(monacoOptions);
+                }
+            }
+        });
+    }
+
+    set value (value) {
+        if (this._value === value) {
+            return;
+        }
+        this._value = value;
         if (this.editor) {
-            this.editor.updateOptions(this._getProperties());
+            this.editor.setValue(this._value);
         }
     }
 
-    _updateValue () {
-        this.editor.setValue(this._getProperties().value);
+    get value () {
+        return this._value;
     }
 
-    _getProperties () {
-        let opts = {
-            namespace: this.namespace || this.defaults.namespace,
-            value: this.value || this.defaults.value,
-            theme: this.theme || this.defaults.theme,
-            language: this.language || this.defaults.language,
-            readOnly: typeof this.readOnly === 'undefined' ?  this.defaults.readOnly : this.readOnly,
-            lineNumbers: typeof this.lineNumbers === 'undefined' ?  this.defaults.lineNumbers : this.lineNumbers
-        };
-        Object.keys(opts).forEach(key => {
-            if (typeof opts[key] === 'undefined') {
-                delete opts[key];
-            }
-        });
-        return opts;
+    get editorOptions () {
+        return {
+            namespace: this.namespace,
+            value: this.value,
+            theme: this.theme,
+            language: this.language,
+            readOnly: this.readOnly,
+            lineNumbers: !this.noLineNumbers,
+        }
+    }
+
+    set namespace (ns) {
+        if (this._namespace === ns) {
+            return;
+        }
+        this._namespace = ns;
+    }
+
+    get namespace () {
+        return this._namespace;
     }
 
     getEditor () {
         return this.editor;
+    }
+
+    get loading () {
+        return this._loading;
     }
 }
 
