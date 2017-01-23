@@ -89,6 +89,13 @@ if (typeof ShadowRoot.prototype.caretRangeFromPoint === 'undefined') {
 var MonacoEditor = function (_HTMLElement) {
     _inherits(MonacoEditor, _HTMLElement);
 
+    _createClass(MonacoEditor, null, [{
+        key: 'observedAttributes',
+        get: function get() {
+            return ['value', 'language', 'theme', 'read-only', 'no-line-numbers', 'namespace', 'no-rounded-selection', 'no-scroll-beyond-last-line'];
+        }
+    }]);
+
     function MonacoEditor() {
         _classCallCheck(this, MonacoEditor);
 
@@ -101,14 +108,16 @@ var MonacoEditor = function (_HTMLElement) {
     _createClass(MonacoEditor, [{
         key: 'createdCallback',
         value: function createdCallback() {
-            this._readOnly = false;
-            this._language = 'javascript';
             this._value = '';
-            this._theme = 'vs';
-            this._noLineNumbers = false;
             this._namespace = './dist/monaco-editor/vs';
 
-            console.log(this.editorOptions);
+            this.addStringProperty('theme', 'theme', 'vs');
+            this.addStringProperty('language', 'language', 'javascript');
+
+            this.addBooleanProperty('readOnly', 'readOnly', false);
+            this.addBooleanProperty('noLineNumbers', 'lineNumbers', false, false, true);
+            this.addBooleanProperty('noRoundedSelection', 'roundedSelection', false, false, true);
+            this.addBooleanProperty('noScrollBeyondLastLine', 'scrollBeyondLastLine', false, false, true);
         }
     }, {
         key: 'attachedCallback',
@@ -125,14 +134,6 @@ var MonacoEditor = function (_HTMLElement) {
         value: function connectedCallback() {
             var _this2 = this;
 
-            var attributes = ['value', 'language', 'readOnly', 'noLineNumbers', 'theme', 'namespace'],
-                attrValue = void 0;
-            attributes.forEach(function (attribute) {
-                attrValue = _this2.getAttribute(attribute);
-                if (attrValue !== null) {
-                    _this2.attributeChangedCallback(attribute, null, attrValue);
-                }
-            });
             this._loading = true;
             // Create a shadow root to host the style and the editor's container'
             this.root = typeof this.attachShadow === 'function' ? this.attachShadow({ mode: 'open' }) : this.createShadowRoot();
@@ -213,7 +214,7 @@ var MonacoEditor = function (_HTMLElement) {
     }, {
         key: 'disconnectedCallback',
         value: function disconnectedCallback() {
-            this.removeChild(this.container);
+            this.root.removeChild(this.container);
             this.editor.dispose();
         }
     }, {
@@ -222,8 +223,69 @@ var MonacoEditor = function (_HTMLElement) {
             var camelCased = name.replace(/-([a-z])/g, function (m, w) {
                 return w.toUpperCase();
             });
-            console.log(name, camelCased);
             this[camelCased] = newValue;
+        }
+    }, {
+        key: 'addStringProperty',
+        value: function addStringProperty(name, monacoName, value, reflectToAttribute) {
+            var _this5 = this;
+
+            var cachedName = '_' + name,
+                attrName = name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase(),
+                monacoOptions = {};
+            this[cachedName] = value;
+            Object.defineProperty(this, name, {
+                get: function get() {
+                    return _this5[cachedName];
+                },
+                set: function set(value) {
+                    if (_this5[cachedName] === value) {
+                        return;
+                    }
+                    _this5[cachedName] = value;
+                    if (reflectToAttribute) {
+                        _this5.setAttribute(attrName, _this5[cachedName]);
+                    }
+                    if (_this5.editor) {
+                        monacoOptions[monacoName] = _this5[cachedName];
+                        _this5.editor.updateOptions(monacoOptions);
+                    }
+                }
+            });
+        }
+    }, {
+        key: 'addBooleanProperty',
+        value: function addBooleanProperty(name, monacoName, value, reflectToAttribute, invert) {
+            var _this6 = this;
+
+            var cachedName = '_' + name,
+                attrName = name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase(),
+                monacoOptions = {};
+            value = Boolean(value);
+            this[cachedName] = value;
+            Object.defineProperty(this, name, {
+                get: function get() {
+                    return _this6[cachedName];
+                },
+                set: function set(value) {
+                    value = value == '' ? true : Boolean(value);
+                    if (_this6[cachedName] === value) {
+                        return;
+                    }
+                    _this6[cachedName] = value;
+                    if (reflectToAttribute) {
+                        if (value) {
+                            _this6.setAttribute(attrName, '');
+                        } else {
+                            _this6.removeAttribute(attrName);
+                        }
+                    }
+                    if (_this6.editor) {
+                        monacoOptions[monacoName] = invert ? !_this6[cachedName] : _this6[cachedName];
+                        _this6.editor.updateOptions(monacoOptions);
+                    }
+                }
+            });
         }
     }, {
         key: 'getEditor',
@@ -245,48 +307,6 @@ var MonacoEditor = function (_HTMLElement) {
             return this._value;
         }
     }, {
-        key: 'theme',
-        set: function set(t) {
-            if (this._theme === t) {
-                return;
-            }
-            this._theme = t;
-            if (this.editor) {
-                this.editor.updateOptions({ theme: this._theme });
-            }
-        },
-        get: function get() {
-            return this._theme;
-        }
-    }, {
-        key: 'readOnly',
-        set: function set(r) {
-            if (this._readOnly === r) {
-                return;
-            }
-            this._readOnly = r;
-            if (this.editor) {
-                this.editor.updateOptions({ readOnly: this._readOnly });
-            }
-        },
-        get: function get() {
-            return this._readOnly;
-        }
-    }, {
-        key: 'noLineNumbers',
-        set: function set(v) {
-            if (this._noLineNumbers === v) {
-                return;
-            }
-            this._noLineNumbers = v;
-            if (this.editor) {
-                this.editor.updateOptions({ lineNumbers: !this._noLineNumbers });
-            }
-        },
-        get: function get() {
-            return this._noLineNumbers;
-        }
-    }, {
         key: 'editorOptions',
         get: function get() {
             return {
@@ -295,7 +315,9 @@ var MonacoEditor = function (_HTMLElement) {
                 theme: this.theme,
                 language: this.language,
                 readOnly: this.readOnly,
-                lineNumbers: !this.noLineNumbers
+                lineNumbers: !this.noLineNumbers,
+                roundedSelection: !this.noRoundedSelection,
+                scrollBeyondLastLine: !this.noScrollBeyondLastLine
             };
         }
     }, {
@@ -308,20 +330,6 @@ var MonacoEditor = function (_HTMLElement) {
         },
         get: function get() {
             return this._namespace;
-        }
-    }, {
-        key: 'language',
-        set: function set(l) {
-            if (this._language === l) {
-                return;
-            }
-            this._language = l;
-            if (this.editor) {
-                this.editor.updateOptions({ language: this._language });
-            }
-        },
-        get: function get() {
-            return this._language;
         }
     }, {
         key: 'loading',

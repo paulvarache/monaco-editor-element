@@ -178,7 +178,7 @@ class MonacoEditor extends HTMLElement {
     }
 
     disconnectedCallback () {
-        this.removeChild(this.container);
+        this.root.removeChild(this.container);
         this.editor.dispose();
     }
 

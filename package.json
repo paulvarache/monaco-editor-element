@@ -1,6 +1,6 @@
 {
   "name": "monaco-editor-element",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "A custom element wrapper for the Monaco editor by Microsoft",
   "main": "monaco-editor.js",
   "dependencies": {

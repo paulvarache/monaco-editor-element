@@ -178,7 +178,7 @@ class MonacoEditor extends HTMLElement {
     }
 
     disconnectedCallback () {
-        this.removeChild(this.container);
+        this.root.removeChild(this.container);
         this.editor.dispose();
     }
 
@@ -267,6 +267,8 @@ class MonacoEditor extends HTMLElement {
             language: this.language,
             readOnly: this.readOnly,
             lineNumbers: !this.noLineNumbers,
+            roundedSelection: !this.noRoundedSelection,
+            scrollBeyondLastLine: !this.noScrollBeyondLastLine
         }
     }
 
