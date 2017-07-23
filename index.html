@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title></title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="import" type="" href="./monaco-editor-import.html">
+        <style>
+            html, body {
+                margin: 0px;
+                padding: 0px;
+                font-family: Arial;
+            }
+            .container {
+                display: flex;
+                flex-direction: row;
+                width: 100vw;
+                height: 100vh;
+            }
+            monaco-editor {
+                flex: 1;
+                display: block;
+            }
+            .options {
+                width: 300px;
+                padding: 8px 12px;
+            }
+            h1 {
+                text-align: center;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Monaco-editor-element demo</h1>
+        <div class="container">
+            <div class="options">
+                <div>
+                    <label>
+                        <span>Theme</span>
+                        <select name="theme" data-editor-bound="theme">
+                            <option value="vs">Default</option>
+                            <option value="vs-dark">Dark</option>
+                            <option value="hc-black">High contrast</option>
+                        </select>
+                    </label>
+                    
+                </div>
+                <div>
+                    <label>
+                        <span>No minimap</span>
+                        <input type="checkbox" data-editor-bound="no-minimap">
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        <span>Read only</span>
+                        <input type="checkbox" data-editor-bound="read-only">
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        <span>No line numbers</span>
+                        <input type="checkbox" data-editor-bound="no-line-numbers">
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        <span>No rounded selection</span>
+                        <input type="checkbox" data-editor-bound="no-rounded-selection">
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        <span>Don't scroll beyond last line</span>
+                        <input type="checkbox" data-editor-bound="no-scroll-beyond-last-line">
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        <span>Disable drag and drop</span>
+                        <input type="checkbox" data-editor-bound="no-drag-and-drop">
+                    </label>
+                </div>
+            </div>
+            <monaco-editor value="document.createElement('monaco-editor')"></monaco-editor>
+            <script>
+                let bindings = document.querySelectorAll('[data-editor-bound]'),
+                    editor = document.querySelector('monaco-editor');
+                for (let i = 0; i < bindings.length; i++) {
+                    ((input) => {
+                        if (input.getAttribute('type') === 'checkbox') {
+                            input.addEventListener('change', () => {
+                                if (input.checked) {
+                                    editor.setAttribute(input.getAttribute('data-editor-bound'), input.checked);
+                                } else {
+                                    editor.removeAttribute(input.getAttribute('data-editor-bound'));
+                                }
+                            });
+                        } else if (input.tagName.toLowerCase() === 'select') {
+                            input.addEventListener('change', () => {
+                                editor.setAttribute(input.getAttribute('data-editor-bound'), input.value);
+                            });
+                        }
+                    })(bindings[i]);
+                }
+            </script>
+        </div>
+    </body>
+</html>

@@ -92,7 +92,7 @@ var MonacoEditor = function (_HTMLElement) {
     _createClass(MonacoEditor, null, [{
         key: 'observedAttributes',
         get: function get() {
-            return ['value', 'language', 'theme', 'read-only', 'no-line-numbers', 'namespace', 'no-rounded-selection', 'no-scroll-beyond-last-line'];
+            return ['value', 'language', 'theme', 'read-only', 'no-line-numbers', 'namespace', 'no-rounded-selection', 'no-scroll-beyond-last-line', 'no-minimap'];
         }
     }]);
 
@@ -110,14 +110,15 @@ var MonacoEditor = function (_HTMLElement) {
         value: function createdCallback() {
             this._value = '';
             this._namespace = './dist/monaco-editor/vs';
+            this._theme = 'vs';
 
-            this.addStringProperty('theme', 'theme', 'vs');
             this.addStringProperty('language', 'language', 'javascript');
 
             this.addBooleanProperty('readOnly', 'readOnly', false);
             this.addBooleanProperty('noLineNumbers', 'lineNumbers', false, false, true);
             this.addBooleanProperty('noRoundedSelection', 'roundedSelection', false, false, true);
             this.addBooleanProperty('noScrollBeyondLastLine', 'scrollBeyondLastLine', false, false, true);
+            this.addBooleanProperty('noMinimap', 'minimap.enabled', false, false, true);
         }
     }, {
         key: 'attachedCallback',
@@ -151,6 +152,7 @@ var MonacoEditor = function (_HTMLElement) {
                 _this2.styleEl.innerHTML = MonacoEditor._styleText;
                 // Create the editor
                 _this2.editor = monaco.editor.create(_this2.container, _this2.editorOptions);
+                _this2.root.insertBefore(_this2.editor._themeService._styleElement, _this2.root.firstChild);
                 _this2.editor.viewModel._shadowRoot = _this2.root;
                 _this2.bindEvents();
                 _this2._loading = false;
@@ -247,7 +249,12 @@ var MonacoEditor = function (_HTMLElement) {
                         _this5.setAttribute(attrName, _this5[cachedName]);
                     }
                     if (_this5.editor) {
-                        monacoOptions[monacoName] = _this5[cachedName];
+                        monacoName.split('.').reduce(function (acc, property, index, self) {
+                            if (index === self.length - 1) {
+                                return acc[property] = _this5[cachedName];
+                            }
+                            return acc[property] = {};
+                        }, monacoOptions);
                         _this5.editor.updateOptions(monacoOptions);
                     }
                 }
@@ -281,7 +288,12 @@ var MonacoEditor = function (_HTMLElement) {
                         }
                     }
                     if (_this6.editor) {
-                        monacoOptions[monacoName] = invert ? !_this6[cachedName] : _this6[cachedName];
+                        monacoName.split('.').reduce(function (acc, property, index, self) {
+                            if (index === self.length - 1) {
+                                return acc[property] = invert ? !_this6[cachedName] : _this6[cachedName];
+                            }
+                            return acc[property] = {};
+                        }, monacoOptions);
                         _this6.editor.updateOptions(monacoOptions);
                     }
                 }
@@ -312,12 +324,15 @@ var MonacoEditor = function (_HTMLElement) {
             return {
                 namespace: this.namespace,
                 value: this.value,
-                theme: this.theme,
+                theme: this._theme,
                 language: this.language,
                 readOnly: this.readOnly,
                 lineNumbers: !this.noLineNumbers,
                 roundedSelection: !this.noRoundedSelection,
-                scrollBeyondLastLine: !this.noScrollBeyondLastLine
+                scrollBeyondLastLine: !this.noScrollBeyondLastLine,
+                minimap: {
+                    enabled: !this.noMinimap
+                }
             };
         }
     }, {
@@ -335,6 +350,17 @@ var MonacoEditor = function (_HTMLElement) {
         key: 'loading',
         get: function get() {
             return this._loading;
+        }
+    }, {
+        key: 'theme',
+        set: function set(value) {
+            this._theme = value;
+            if ('monaco' in window) {
+                monaco.editor.setTheme(this._theme);
+            }
+        },
+        get: function get() {
+            return this._theme;
         }
     }]);
 

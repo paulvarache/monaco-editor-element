@@ -80,7 +80,8 @@ class MonacoEditor extends HTMLElement {
 
     static get observedAttributes() {
         return ['value', 'language', 'theme', 'read-only', 'no-line-numbers',
-                'namespace', 'no-rounded-selection', 'no-scroll-beyond-last-line'];
+                'namespace', 'no-rounded-selection', 'no-scroll-beyond-last-line',
+                'no-minimap'];
     }
 
     constructor () {
@@ -91,14 +92,15 @@ class MonacoEditor extends HTMLElement {
     createdCallback () {
         this._value = '';
         this._namespace = './dist/monaco-editor/vs';
+        this._theme = 'vs';
 
-        this.addStringProperty('theme', 'theme', 'vs');
         this.addStringProperty('language', 'language', 'javascript');
 
         this.addBooleanProperty('readOnly', 'readOnly', false);
         this.addBooleanProperty('noLineNumbers', 'lineNumbers', false, false, true);
         this.addBooleanProperty('noRoundedSelection', 'roundedSelection', false, false, true);
         this.addBooleanProperty('noScrollBeyondLastLine', 'scrollBeyondLastLine', false, false, true);
+        this.addBooleanProperty('noMinimap', 'minimap.enabled', false, false, true);
     }
 
     attachedCallback () {
@@ -127,6 +129,7 @@ class MonacoEditor extends HTMLElement {
             this.styleEl.innerHTML = MonacoEditor._styleText;
             // Create the editor
             this.editor = monaco.editor.create(this.container, this.editorOptions);
+            this.root.insertBefore(this.editor._themeService._styleElement, this.root.firstChild);
             this.editor.viewModel._shadowRoot = this.root;
             this.bindEvents();
             this._loading = false;
@@ -207,17 +210,22 @@ class MonacoEditor extends HTMLElement {
                     this.setAttribute(attrName, this[cachedName])
                 }
                 if (this.editor) {
-                    monacoOptions[monacoName] = this[cachedName];
+                    monacoName.split('.').reduce((acc, property, index, self) => {
+                        if (index === self.length - 1) {
+                            return acc[property] = this[cachedName];
+                        }
+                        return acc[property] = {};
+                    }, monacoOptions);
                     this.editor.updateOptions(monacoOptions);
                 }
             }
         });
     }
-
+    
     addBooleanProperty (name, monacoName, value, reflectToAttribute, invert) {
         let cachedName = '_' + name,
-            attrName = name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase(),
-            monacoOptions = {};
+        attrName = name.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase(),
+        monacoOptions = {};
         value = Boolean(value);
         this[cachedName] = value;
         Object.defineProperty(this, name, {
@@ -238,7 +246,12 @@ class MonacoEditor extends HTMLElement {
                     }
                 }
                 if (this.editor) {
-                    monacoOptions[monacoName] = invert ? !this[cachedName] : this[cachedName];
+                    monacoName.split('.').reduce((acc, property, index, self) => {
+                        if (index === self.length - 1) {
+                            return acc[property] = invert ? !this[cachedName] : this[cachedName];
+                        }
+                        return acc[property] = {};
+                    }, monacoOptions);
                     this.editor.updateOptions(monacoOptions);
                 }
             }
@@ -263,12 +276,15 @@ class MonacoEditor extends HTMLElement {
         return {
             namespace: this.namespace,
             value: this.value,
-            theme: this.theme,
+            theme: this._theme,
             language: this.language,
             readOnly: this.readOnly,
             lineNumbers: !this.noLineNumbers,
             roundedSelection: !this.noRoundedSelection,
-            scrollBeyondLastLine: !this.noScrollBeyondLastLine
+            scrollBeyondLastLine: !this.noScrollBeyondLastLine,
+            minimap: {
+                enabled: !this.noMinimap
+            }
         }
     }
 
@@ -289,6 +305,17 @@ class MonacoEditor extends HTMLElement {
 
     get loading () {
         return this._loading;
+    }
+
+    set theme (value) {
+        this._theme = value;
+        if ('monaco' in window) {
+            monaco.editor.setTheme(this._theme);
+        }
+    }
+
+    get theme () {
+        return this._theme;
     }
 }
 
