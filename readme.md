@@ -13,9 +13,11 @@ Customizable attributes:
  - `namespace`: Where to find the `monaco-editor` source, default *node_modules/monaco-editor/min/vs*
  - `language`: Which language parser to use, default *javascript* ( Can't be changed after first render )
  - `value`: Content of the editor
- - `theme`
+ - `theme`: Will be shared across all editors ( see https://github.com/Microsoft/monaco-editor/issues/338 )
  - `read-only`
  - `no-line-numbers`
+ - `no-minimap`: Disables the minimap
+ - `no-drag-and-drop`: Disables the drag and drop
 
 
 Integration:
